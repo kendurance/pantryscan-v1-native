@@ -34,7 +34,25 @@
         }
       ],
       "expo-audio",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PantryScan uses the camera to scan grocery barcodes."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "PantryScan uses the microphone to record voice notes."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#1f6f4a"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
