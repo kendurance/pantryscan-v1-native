@@ -33,7 +33,6 @@
           "imageWidth": 76
         }
       ],
-      "expo-audio",
       "expo-sqlite",
       [
         "expo-camera",
