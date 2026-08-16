@@ -54,7 +54,6 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
-    "android:clean": "adb shell am force-stop host.exp.exponent; expo start --android",
     "zombie-check": "lsof -nP -iTCP:8081 -sTCP:LISTEN"
   },
   "jest": {
