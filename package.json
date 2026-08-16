@@ -54,7 +54,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
-    "zombie-check": "lsof -nP -iTCP:8081 -sTCP:LISTEN"
+    "zombie-check": "lsof -nP -iTCP:8081 -sTCP:LISTEN",
+    "memory-leak-check": "ps aux | grep -i headless | grep -v grep"
   },
   "jest": {
     "preset": "jest-expo"
