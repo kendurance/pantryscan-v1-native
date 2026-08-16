@@ -54,7 +54,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
-    "recreate-mac-tunnel": "adb wait-for-device && adb reverse tcp:8081 tcp:8081 && adb reverse --list",
+    "android:clean": "adb shell am force-stop host.exp.exponent; expo start --android",
     "zombie-check": "lsof -nP -iTCP:8081 -sTCP:LISTEN"
   },
   "jest": {
