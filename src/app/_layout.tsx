@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useColorScheme } from "react-native";
 
 import { AnimatedSplashOverlay } from "@/components/animated-icon";
+import { PantryDatabaseProvider } from "@/db/pantry-database-provider";
 import { persister, PersistMaxAge, queryClient } from "@/lib/query-client";
 import { useAppStateFocusManager } from "@/lib/query-native-adapters";
 
@@ -18,13 +19,19 @@ export default function RootLayout() {
       client={queryClient}
       persistOptions={{ persister, maxAge: PersistMaxAge }}
     >
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <AnimatedSplashOverlay />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="labs" options={{ headerShown: false }} />
-        </Stack>
-      </ThemeProvider>
+      {/* At the root rather than scoped to the tab group: /product/[barcode]
+          writes to the pantry too, and it renders outside (tabs). */}
+      <PantryDatabaseProvider>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+        >
+          <AnimatedSplashOverlay />
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="labs" options={{ headerShown: false }} />
+          </Stack>
+        </ThemeProvider>
+      </PantryDatabaseProvider>
     </PersistQueryClientProvider>
   );
 }

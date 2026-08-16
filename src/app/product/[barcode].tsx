@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ProductNotFoundError, type Product } from "@/api/open-food-facts";
 import { useProduct } from "@/api/queries";
+import { AddToPantry } from "@/components/add-to-pantry";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { MaxContentWidth, Spacing } from "@/constants/theme";
@@ -141,6 +142,8 @@ function ProductDetail({ product }: { product: Product }) {
           <Fact label="Nutri-Score" value={nutriscoreGrade.toUpperCase()} />
         )}
       </ThemedView>
+
+      <AddToPantry product={product} />
     </ThemedView>
   );
 }
