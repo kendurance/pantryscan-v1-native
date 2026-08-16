@@ -53,8 +53,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "recreate-mac-tunnel": "adb reverse tcp:8081 tcp:8081",
+    "test": "jest",
+    "recreate-mac-tunnel": "adb wait-for-device && adb reverse tcp:8081 tcp:8081 && adb reverse --list",
     "zombie-check": "lsof -nP -iTCP:8081 -sTCP:LISTEN"
+  },
+  "jest": {
+    "preset": "jest-expo"
   },
   "private": true
 }
