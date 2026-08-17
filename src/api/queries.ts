@@ -12,6 +12,7 @@ import {
   getPantryItem,
   insertPantryItem,
   listPantryItems,
+  updatePantryItemExpiry,
   type NewPantryItem,
   type PantryItem,
 } from "@/db/pantry";
@@ -101,6 +102,64 @@ export function useAddToPantry() {
     },
 
     onError: (_error, _item, context) => {
+      queryClient.setQueryData(pantryKeys.list, context?.previous);
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: pantryKeys.list });
+    },
+  });
+}
+
+export function useUpdatePantryExpiry() {
+  const db = useSQLiteContext();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      expiresOn,
+    }: {
+      id: number;
+      expiresOn: string | undefined;
+    }) => {
+      const existing = await getPantryItem(db, id);
+      if (!existing) throw new Error(`Pantry item ${id} no longer exists`);
+
+      // Schedule the replacement before cancelling the old reminder, so a
+      // failure here leaves the original intact rather than none at all.
+      const notificationId = await scheduleExpiryReminder({
+        name: existing.name,
+        expiresOn,
+      });
+
+      try {
+        const updated = await updatePantryItemExpiry(
+          db,
+          id,
+          expiresOn,
+          notificationId,
+        );
+        await cancelExpiryReminder(existing.notificationId);
+        return updated;
+      } catch (error) {
+        // The row is unchanged, so drop the reminder that now has no owner.
+        await cancelExpiryReminder(notificationId ?? undefined);
+        throw error;
+      }
+    },
+
+    onMutate: async ({ id, expiresOn }) => {
+      const context = await beginOptimisticPantryUpdate(queryClient);
+
+      queryClient.setQueryData<PantryItem[]>(pantryKeys.list, (old = []) =>
+        old.map((item) => (item.id === id ? { ...item, expiresOn } : item)),
+      );
+
+      return context;
+    },
+
+    onError: (_error, _variables, context) => {
       queryClient.setQueryData(pantryKeys.list, context?.previous);
     },
 

@@ -3,6 +3,7 @@ import {
   getPantryItem,
   insertPantryItem,
   listPantryItems,
+  updatePantryItemExpiry,
 } from "@/db/pantry";
 import { migrate } from "@/db/schema";
 
@@ -173,5 +174,81 @@ describe("expiry reminders", () => {
 
     expect(beforeDelete?.notificationId).toBe("notification-xyz");
     expect(await getPantryItem(db, inserted.id)).toBeNull();
+  });
+});
+
+describe("editing the expiry date", () => {
+  it("updates the date and swaps the notification id", async () => {
+    const db = await createTestDb();
+    const inserted = await insertPantryItem(
+      db,
+      { barcode: "1", name: "Milk", expiresOn: "2026-09-01" },
+      "old-notification",
+    );
+
+    const updated = await updatePantryItemExpiry(
+      db,
+      inserted.id,
+      "2026-09-15",
+      "new-notification",
+    );
+
+    expect(updated.expiresOn).toBe("2026-09-15");
+    expect(updated.notificationId).toBe("new-notification");
+  });
+
+  it("clears the date and the reminder together", async () => {
+    const db = await createTestDb();
+    const inserted = await insertPantryItem(
+      db,
+      { barcode: "1", name: "Milk", expiresOn: "2026-09-01" },
+      "old-notification",
+    );
+
+    const updated = await updatePantryItemExpiry(db, inserted.id, undefined, null);
+
+    expect(updated.expiresOn).toBeUndefined();
+    expect(updated.notificationId).toBeUndefined();
+  });
+
+  it("leaves the other fields untouched", async () => {
+    const db = await createTestDb();
+    const inserted = await insertPantryItem(db, {
+      barcode: "5000112637922",
+      name: "Coca Cola",
+      brand: "Coca-Cola",
+      quantity: "330 ml",
+      expiresOn: "2026-09-01",
+    });
+
+    const updated = await updatePantryItemExpiry(
+      db,
+      inserted.id,
+      "2026-10-01",
+      null,
+    );
+
+    expect(updated).toMatchObject({
+      barcode: "5000112637922",
+      name: "Coca Cola",
+      brand: "Coca-Cola",
+      quantity: "330 ml",
+      addedAt: inserted.addedAt,
+    });
+  });
+
+  it("re-sorts the list when a date moves earlier", async () => {
+    const db = await createTestDb();
+    await insertPantryItem(db, { barcode: "1", name: "First", expiresOn: "2026-03-01" });
+    const later = await insertPantryItem(db, {
+      barcode: "2",
+      name: "Second",
+      expiresOn: "2026-12-01",
+    });
+
+    await updatePantryItemExpiry(db, later.id, "2026-01-01", null);
+
+    const items = await listPantryItems(db);
+    expect(items.map((i) => i.name)).toEqual(["Second", "First"]);
   });
 });

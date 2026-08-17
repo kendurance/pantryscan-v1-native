@@ -1,9 +1,20 @@
 import { Image } from "expo-image";
 import { Link } from "expo-router";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet } from "react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { usePantryItems, useRemoveFromPantry } from "@/api/queries";
+import {
+  usePantryItems,
+  useRemoveFromPantry,
+  useUpdatePantryExpiry,
+} from "@/api/queries";
+import { ExpiryDateField } from "@/components/expiry-date-field";
 import type { PantryItem } from "@/db/pantry";
 import { daysUntil } from "@/lib/iso-date";
 import { ThemedText } from "@/components/themed-text";
@@ -67,52 +78,80 @@ function expiryLabel(expiresOn: string | undefined) {
 
 function PantryRow({ item }: { item: PantryItem }) {
   const { mutate: remove } = useRemoveFromPantry();
+  const { mutate: updateExpiry } = useUpdatePantryExpiry();
+  const [isEditing, setIsEditing] = useState(false);
   const expiry = expiryLabel(item.expiresOn);
   // Optimistically-added rows carry a negative sentinel id until the insert
-  // settles; deleting one would target a row that does not exist yet.
+  // settles; mutating one would target a row that does not exist yet.
   const isPendingRow = item.id < 0;
 
   return (
     <ThemedView type="backgroundElement" style={styles.row}>
-      {item.imageUrl ? (
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.thumbnail}
-          contentFit="contain"
-          cachePolicy="memory-disk"
-          accessibilityLabel={item.name}
-        />
-      ) : (
-        <ThemedView type="backgroundSelected" style={styles.thumbnail} />
-      )}
-
-      <ThemedView style={styles.rowBody}>
-        <ThemedText type="smallBold" numberOfLines={1}>
-          {item.name}
-        </ThemedText>
-        {item.brand && (
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            {item.brand}
-          </ThemedText>
+      <ThemedView style={styles.rowMain}>
+        {item.imageUrl ? (
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.thumbnail}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            accessibilityLabel={item.name}
+          />
+        ) : (
+          <ThemedView type="backgroundSelected" style={styles.thumbnail} />
         )}
-        <ThemedText
-          type="small"
-          themeColor={expiry.urgent ? "text" : "textSecondary"}
+
+        <ThemedView style={styles.rowBody}>
+          <ThemedText type="smallBold" numberOfLines={1}>
+            {item.name}
+          </ThemedText>
+          {item.brand && (
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              numberOfLines={1}
+            >
+              {item.brand}
+            </ThemedText>
+          )}
+
+          {/* Tapping the expiry is how you correct it — the date is the thing
+              the user is looking at when they notice it's wrong. */}
+          <Pressable
+            onPress={() => setIsEditing((editing) => !editing)}
+            disabled={isPendingRow}
+            accessibilityLabel={`Change expiry date for ${item.name}`}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <ThemedText
+              type="small"
+              themeColor={expiry.urgent ? "text" : "textSecondary"}
+            >
+              {expiry.text} · Edit
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
+
+        <Pressable
+          onPress={() => remove(item.id)}
+          disabled={isPendingRow}
+          accessibilityLabel={`Remove ${item.name}`}
+          style={({ pressed }) => pressed && styles.pressed}
         >
-          {expiry.text}
-        </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Remove
+          </ThemedText>
+        </Pressable>
       </ThemedView>
 
-      <Pressable
-        onPress={() => remove(item.id)}
-        disabled={isPendingRow}
-        accessibilityLabel={`Remove ${item.name}`}
-        style={({ pressed }) => pressed && styles.pressed}
-      >
-        <ThemedText type="small" themeColor="textSecondary">
-          Remove
-        </ThemedText>
-      </Pressable>
+      {isEditing && (
+        <ExpiryDateField
+          value={item.expiresOn}
+          onChange={(expiresOn) => {
+            setIsEditing(false);
+            updateExpiry({ id: item.id, expiresOn });
+          }}
+        />
+      )}
     </ThemedView>
   );
 }
@@ -148,11 +187,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   row: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: Spacing.three,
     padding: Spacing.three,
     borderRadius: Spacing.three,
+  },
+  rowMain: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+    backgroundColor: "transparent",
   },
   thumbnail: {
     width: 48,

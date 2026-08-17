@@ -112,6 +112,30 @@ export async function getPantryItem(
   return row ? toPantryItem(row) : null;
 }
 
+/**
+ * Updates an item's expiry date and the reminder scheduled against it. Both
+ * change together: a new date means the old reminder is wrong.
+ */
+export async function updatePantryItemExpiry(
+  db: SQLiteDatabase,
+  id: number,
+  expiresOn: string | undefined,
+  notificationId: string | null,
+): Promise<PantryItem> {
+  await db.runAsync(
+    "UPDATE pantry_items SET expires_on = ?, notification_id = ? WHERE id = ?",
+    expiresOn ?? null,
+    notificationId,
+    id,
+  );
+
+  const updated = await getPantryItem(db, id);
+  if (!updated) {
+    throw new Error(`Pantry item ${id} could not be read back after update`);
+  }
+  return updated;
+}
+
 export async function deletePantryItem(
   db: SQLiteDatabase,
   id: number,
