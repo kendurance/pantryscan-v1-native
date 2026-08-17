@@ -9,11 +9,16 @@ import { useSQLiteContext } from "expo-sqlite";
 import { fetchProduct, ProductNotFoundError } from "@/api/open-food-facts";
 import {
   deletePantryItem,
+  getPantryItem,
   insertPantryItem,
   listPantryItems,
   type NewPantryItem,
   type PantryItem,
 } from "@/db/pantry";
+import {
+  cancelExpiryReminder,
+  scheduleExpiryReminder,
+} from "@/lib/notifications";
 
 export const productKeys = {
   all: ["product"] as const,
@@ -65,7 +70,18 @@ export function useAddToPantry() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (item: NewPantryItem) => insertPantryItem(db, item),
+    mutationFn: async (item: NewPantryItem) => {
+      // Schedule first so the identifier can be stored with the row; without
+      // it there is no way to cancel the reminder when the item is deleted.
+      const notificationId = await scheduleExpiryReminder(item);
+      try {
+        return await insertPantryItem(db, item, notificationId);
+      } catch (error) {
+        // Don't leave a reminder scheduled for a row that was never written.
+        await cancelExpiryReminder(notificationId ?? undefined);
+        throw error;
+      }
+    },
 
     onMutate: async (item) => {
       const context = await beginOptimisticPantryUpdate(queryClient);
@@ -99,7 +115,13 @@ export function useRemoveFromPantry() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => deletePantryItem(db, id),
+    mutationFn: async (id: number) => {
+      // Read the row first: once it is deleted the identifier is gone, and an
+      // orphaned reminder would fire for an item the user no longer has.
+      const existing = await getPantryItem(db, id);
+      await deletePantryItem(db, id);
+      await cancelExpiryReminder(existing?.notificationId);
+    },
 
     onMutate: async (id) => {
       const context = await beginOptimisticPantryUpdate(queryClient);

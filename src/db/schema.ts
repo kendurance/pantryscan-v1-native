@@ -4,7 +4,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
  * Bump this when adding a migration below. `PRAGMA user_version` tracks which
  * migrations a given device has already run, so each one applies exactly once.
  */
-const LatestVersion = 1;
+const LatestVersion = 2;
 
 /**
  * Runs pending migrations on the pantry database. Passed to `SQLiteProvider`'s
@@ -35,6 +35,14 @@ export async function migrate(db: SQLiteDatabase): Promise<void> {
 
       CREATE INDEX IF NOT EXISTS idx_pantry_items_expires_on
         ON pantry_items (expires_on);
+    `);
+  }
+
+  if (currentVersion < 2) {
+    // Identifier of the scheduled expiry reminder, so it can be cancelled when
+    // the item is deleted. Without it, notifications fire for items long gone.
+    await db.execAsync(`
+      ALTER TABLE pantry_items ADD COLUMN notification_id TEXT;
     `);
   }
 

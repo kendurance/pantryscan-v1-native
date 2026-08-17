@@ -1,40 +1,33 @@
 import {
   deletePantryItem,
+  getPantryItem,
   insertPantryItem,
   listPantryItems,
 } from "@/db/pantry";
+import { migrate } from "@/db/schema";
+
+type TestDb = Parameters<typeof listPantryItems>[0];
 
 /**
- * Exercises the pantry SQL against a real SQLite engine (`node:sqlite`) rather
- * than a mock, so the queries themselves are covered — column names, the null
- * handling, and the expiry ordering.
+ * Wraps `node:sqlite` in the subset of the `SQLiteDatabase` interface these
+ * modules use, so the real SQL runs against a real engine rather than a mock.
  */
-function createTestDb() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { DatabaseSync } = require("node:sqlite");
-  const raw = new DatabaseSync(":memory:");
-
-  raw.exec(`
-    CREATE TABLE pantry_items (
-      id INTEGER PRIMARY KEY NOT NULL,
-      barcode TEXT NOT NULL,
-      name TEXT NOT NULL,
-      brand TEXT,
-      quantity TEXT,
-      image_url TEXT,
-      expires_on TEXT,
-      added_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
-
-  // Minimal adapter matching the subset of SQLiteDatabase the module uses.
+function createAdapter(raw: {
+  prepare: (sql: string) => {
+    all: (...p: unknown[]) => unknown;
+    get: (...p: unknown[]) => unknown;
+    run: (...p: unknown[]) => { lastInsertRowid: number; changes: number };
+  };
+  exec: (sql: string) => void;
+}): TestDb {
   return {
     getAllAsync: async <T>(sql: string, ...params: unknown[]): Promise<T[]> =>
       raw.prepare(sql).all(...params) as T[],
     getFirstAsync: async <T>(
       sql: string,
       ...params: unknown[]
-    ): Promise<T | null> => (raw.prepare(sql).get(...params) ?? null) as T | null,
+    ): Promise<T | null> =>
+      (raw.prepare(sql).get(...params) ?? null) as T | null,
     runAsync: async (sql: string, ...params: unknown[]) => {
       const result = raw.prepare(sql).run(...params);
       return {
@@ -42,12 +35,27 @@ function createTestDb() {
         changes: Number(result.changes),
       };
     },
-  } as unknown as Parameters<typeof listPantryItems>[0];
+    execAsync: async (sql: string) => {
+      raw.exec(sql);
+    },
+  } as unknown as TestDb;
+}
+
+/**
+ * Builds a database by running the real migrations, so the tests fail if the
+ * schema and the queries ever drift apart.
+ */
+async function createTestDb(): Promise<TestDb> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { DatabaseSync } = require("node:sqlite");
+  const db = createAdapter(new DatabaseSync(":memory:"));
+  await migrate(db);
+  return db;
 }
 
 describe("pantry storage", () => {
   it("round-trips an item and maps snake_case columns to camelCase", async () => {
-    const db = createTestDb();
+    const db = await createTestDb();
 
     const inserted = await insertPantryItem(db, {
       barcode: "5000112637922",
@@ -70,7 +78,7 @@ describe("pantry storage", () => {
   });
 
   it("stores omitted optional fields as undefined, not null", async () => {
-    const db = createTestDb();
+    const db = await createTestDb();
 
     const inserted = await insertPantryItem(db, {
       barcode: "1",
@@ -84,7 +92,7 @@ describe("pantry storage", () => {
   });
 
   it("orders by soonest expiry, with undated items last", async () => {
-    const db = createTestDb();
+    const db = await createTestDb();
 
     await insertPantryItem(db, { barcode: "1", name: "No date" });
     await insertPantryItem(db, {
@@ -103,7 +111,7 @@ describe("pantry storage", () => {
   });
 
   it("removes an item", async () => {
-    const db = createTestDb();
+    const db = await createTestDb();
     const inserted = await insertPantryItem(db, { barcode: "1", name: "Gone" });
 
     await deletePantryItem(db, inserted.id);
@@ -114,7 +122,7 @@ describe("pantry storage", () => {
 
 describe("expiry date handling", () => {
   it("persists and reads back an expiry date", async () => {
-    const db = createTestDb();
+    const db = await createTestDb();
 
     const inserted = await insertPantryItem(db, {
       barcode: "5000112637922",
@@ -126,5 +134,44 @@ describe("expiry date handling", () => {
 
     const [listed] = await listPantryItems(db);
     expect(listed.expiresOn).toBe("2026-08-23");
+  });
+});
+
+describe("expiry reminders", () => {
+  it("stores and reads back a notification id", async () => {
+    const db = await createTestDb();
+
+    const inserted = await insertPantryItem(
+      db,
+      { barcode: "1", name: "Milk", expiresOn: "2026-09-01" },
+      "notification-abc",
+    );
+
+    expect(inserted.notificationId).toBe("notification-abc");
+
+    const fetched = await getPantryItem(db, inserted.id);
+    expect(fetched?.notificationId).toBe("notification-abc");
+  });
+
+  it("leaves the notification id undefined when none was scheduled", async () => {
+    const db = await createTestDb();
+    const inserted = await insertPantryItem(db, { barcode: "1", name: "Milk" });
+
+    expect(inserted.notificationId).toBeUndefined();
+  });
+
+  it("exposes the id before deletion so the reminder can be cancelled", async () => {
+    const db = await createTestDb();
+    const inserted = await insertPantryItem(
+      db,
+      { barcode: "1", name: "Milk" },
+      "notification-xyz",
+    );
+
+    const beforeDelete = await getPantryItem(db, inserted.id);
+    await deletePantryItem(db, inserted.id);
+
+    expect(beforeDelete?.notificationId).toBe("notification-xyz");
+    expect(await getPantryItem(db, inserted.id)).toBeNull();
   });
 });

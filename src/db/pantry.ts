@@ -10,6 +10,7 @@ type PantryItemRow = {
   image_url: string | null;
   expires_on: string | null;
   added_at: string;
+  notification_id: string | null;
 };
 
 /** A pantry item in the shape the app uses. */
@@ -23,10 +24,18 @@ export type PantryItem = {
   /** ISO date (YYYY-MM-DD), or undefined when no expiry was recorded. */
   expiresOn?: string;
   addedAt: string;
+  /** Scheduled expiry reminder, so it can be cancelled if the item is removed. */
+  notificationId?: string;
 };
 
-/** Fields needed to add an item; the id and timestamp are assigned by SQLite. */
-export type NewPantryItem = Omit<PantryItem, "id" | "addedAt">;
+/**
+ * Fields needed to add an item. The id and timestamp are assigned by SQLite,
+ * and the notification is scheduled by the mutation rather than the caller.
+ */
+export type NewPantryItem = Omit<
+  PantryItem,
+  "id" | "addedAt" | "notificationId"
+>;
 
 function toPantryItem(row: PantryItemRow): PantryItem {
   return {
@@ -38,6 +47,7 @@ function toPantryItem(row: PantryItemRow): PantryItem {
     imageUrl: row.image_url ?? undefined,
     expiresOn: row.expires_on ?? undefined,
     addedAt: row.added_at,
+    notificationId: row.notification_id ?? undefined,
   };
 }
 
@@ -49,7 +59,8 @@ export async function listPantryItems(
   db: SQLiteDatabase,
 ): Promise<PantryItem[]> {
   const rows = await db.getAllAsync<PantryItemRow>(
-    `SELECT id, barcode, name, brand, quantity, image_url, expires_on, added_at
+    `SELECT id, barcode, name, brand, quantity, image_url, expires_on, added_at,
+            notification_id
        FROM pantry_items
       ORDER BY expires_on IS NULL, expires_on ASC, added_at DESC`,
   );
@@ -59,21 +70,25 @@ export async function listPantryItems(
 export async function insertPantryItem(
   db: SQLiteDatabase,
   item: NewPantryItem,
+  notificationId?: string | null,
 ): Promise<PantryItem> {
   const result = await db.runAsync(
-    `INSERT INTO pantry_items (barcode, name, brand, quantity, image_url, expires_on)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO pantry_items
+       (barcode, name, brand, quantity, image_url, expires_on, notification_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     item.barcode,
     item.name,
     item.brand ?? null,
     item.quantity ?? null,
     item.imageUrl ?? null,
     item.expiresOn ?? null,
+    notificationId ?? null,
   );
 
   // Read the row back so `addedAt` reflects the value SQLite assigned.
   const row = await db.getFirstAsync<PantryItemRow>(
-    `SELECT id, barcode, name, brand, quantity, image_url, expires_on, added_at
+    `SELECT id, barcode, name, brand, quantity, image_url, expires_on, added_at,
+            notification_id
        FROM pantry_items WHERE id = ?`,
     result.lastInsertRowId,
   );
@@ -82,6 +97,19 @@ export async function insertPantryItem(
     throw new Error("Inserted pantry item could not be read back");
   }
   return toPantryItem(row);
+}
+
+export async function getPantryItem(
+  db: SQLiteDatabase,
+  id: number,
+): Promise<PantryItem | null> {
+  const row = await db.getFirstAsync<PantryItemRow>(
+    `SELECT id, barcode, name, brand, quantity, image_url, expires_on, added_at,
+            notification_id
+       FROM pantry_items WHERE id = ?`,
+    id,
+  );
+  return row ? toPantryItem(row) : null;
 }
 
 export async function deletePantryItem(
