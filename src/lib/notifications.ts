@@ -24,12 +24,15 @@ export const notificationsSupported =
 /**
  * Loads `expo-notifications` on demand.
  *
+ * Exported so the labs screen can drive the module directly without
+ * duplicating the Expo Go guard below.
+ *
  * A static import would run the module's side effects during bundle
  * evaluation, crashing the whole app on Android + Expo Go before any screen
  * renders. Importing it only when it is both supported and needed keeps the
  * app usable there, minus the reminders.
  */
-async function loadNotifications() {
+export async function loadNotifications() {
   if (!notificationsSupported) return null;
 
   const Notifications = await import("expo-notifications");
