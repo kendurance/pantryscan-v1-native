@@ -5,6 +5,8 @@ const expoConfig = require("eslint-config-expo/flat");
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
+    // `.expo` holds generated output (typed routes, caches); linting it
+    // reports problems in files no one edits.
+    ignores: ["dist/*", ".expo/*"],
   }
 ]);

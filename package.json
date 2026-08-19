@@ -59,7 +59,11 @@
     "memory-leak-check": "ps aux | grep -i headless | grep -v grep"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "\\.(css)$": "<rootDir>/src/test/style-mock.js"
+    },
+    "forceExit": true
   },
   "private": true
 }
