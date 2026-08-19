@@ -15,12 +15,12 @@ Built with Expo SDK 57 · React Native 0.86 · React 19.2 · TanStack Query v5 �
 Real scans, not fixtures — expired items sort to the top, and the rest count
 down to their reminder date.
 
-## Why I built it
+## Why this was built
 
-I wanted a real reference implementation of the mobile-specific problems —
-permissions, offline state, native capture, scheduled notifications — rather
-than a tutorial clone. Each of those has a wrong-but-plausible solution that
-only fails on a device, which is the interesting part.
+The purpose is to be a real reference implementation of the mobile-specific
+problems — permissions, offline state, native capture, scheduled notifications
+— rather than a tutorial clone. Each of those has a wrong-but-plausible
+solution that only fails on a device, which is the interesting part.
 
 ## What it demonstrates
 
@@ -130,7 +130,7 @@ is testable without rendering; and migrations are versioned with
 `PRAGMA user_version`, with a test that upgrades a v1 database to prove
 existing rows survive.
 
-## What I'd do next
+## What comes next
 
 An offline mutation queue so scans made without connectivity are replayed on
 reconnect; E2E coverage with Maestro; and a seamless tiling asset for the
