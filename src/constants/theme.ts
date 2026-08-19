@@ -7,13 +7,28 @@ import "@/global.css";
 
 import { Platform } from "react-native";
 
+/**
+ * PantryScan brand palette, shared with the app icon and splash screen.
+ * Kept separate from `Colors` so the light/dark theme keys stay in sync.
+ */
+export const Brand = {
+  /** Pantry brown — splash background and adaptive icon background. */
+  brown: "#8B5E34",
+  /** Accent green, also used for the notification channel colour. */
+  green: "#1f6f4a",
+  /** Warm beige, the light surface tone from the icon artwork. */
+  beige: "#F5E6D3",
+  /** Neutral dark grey for body text on light surfaces. */
+  charcoal: "#4A4A4A",
+} as const;
+
 export const Colors = {
   light: {
-    text: "#000000",
+    text: Brand.charcoal,
     background: "#ffffff",
-    backgroundElement: "#F0F0F3",
-    backgroundSelected: "#E0E1E6",
-    textSecondary: "#60646C",
+    backgroundElement: "#FAF3EA",
+    backgroundSelected: Brand.beige,
+    textSecondary: "#6B5B4C",
   },
   dark: {
     text: "#ffffff",

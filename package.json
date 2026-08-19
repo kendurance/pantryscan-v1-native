@@ -35,6 +35,7 @@
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
+    "react-native-toast-message": "^2.4.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.10.1"
   },
@@ -50,17 +51,19 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "JAVA_HOME=\"$HOME/.local/share/mise/installs/java/temurin-17.0.20+8\" expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
     "zombie-check": "lsof -nP -iTCP:8081 -sTCP:LISTEN",
-    "memory-leak-check": "ps aux | grep -i headless | grep -v grep"
+    "memory-leak-check": "ps aux | grep -i headless | grep -v grep",
+    "android:go": "expo start --android"
   },
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
+      "^@/assets/(.*)$": "<rootDir>/assets/$1",
       "\\.(css)$": "<rootDir>/src/test/style-mock.js"
     },
     "forceExit": true

@@ -3,6 +3,7 @@ import {
   useCameraPermissions,
   type BarcodeScanningResult,
 } from "expo-camera";
+import { useAudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
 import { router, useIsFocused } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +23,9 @@ const BarcodeTypes = ["ean13", "ean8", "upc_e", "qr"] as const;
 /** How long to ignore further scans after a successful one. */
 const RescanDelayMs = 1500;
 
+/** Confirmation chirp, mirroring a supermarket scanner. */
+const ScanBeep = require("@/assets/sounds/scan-beep.wav");
+
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   // Pausing the camera when the tab is backgrounded keeps it from holding the
@@ -29,6 +33,7 @@ export default function ScanScreen() {
   const isFocused = useIsFocused();
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const lockedRef = useRef(false);
+  const beep = useAudioPlayer(ScanBeep);
   const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // The unlock timer outlives a fast navigation away from this tab, so clear it
@@ -48,6 +53,10 @@ export default function ScanScreen() {
       lockedRef.current = true;
 
       setScannedCode(data);
+      // Seek first: the player keeps its position after a previous scan, so
+      // replaying without rewinding is silent.
+      beep.seekTo(0);
+      beep.play();
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -58,7 +67,7 @@ export default function ScanScreen() {
         setScannedCode(null);
       }, RescanDelayMs);
     },
-    [],
+    [beep],
   );
 
   // `null` means the permission state is still resolving.
@@ -111,7 +120,7 @@ export default function ScanScreen() {
         />
       )}
 
-      <SafeAreaView style={styles.overlay} pointerEvents="none">
+      <SafeAreaView style={styles.overlay}>
         <ThemedView style={styles.reticle} />
         <ThemedView type="backgroundElement" style={styles.hint}>
           <ThemedText type="small">
@@ -164,6 +173,8 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
+    // The overlay sits above the camera preview; taps must pass through it.
+    pointerEvents: "none",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.four,

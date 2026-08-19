@@ -14,9 +14,11 @@ import {
   useRemoveFromPantry,
   useUpdatePantryExpiry,
 } from "@/api/queries";
+import { AppBackground } from "@/components/app-background";
 import { ExpiryDateField } from "@/components/expiry-date-field";
 import type { PantryItem } from "@/db/pantry";
 import { daysUntil } from "@/lib/iso-date";
+
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
@@ -25,33 +27,35 @@ export default function PantryScreen() {
   const { data: items, isPending } = usePantryItems();
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="subtitle" style={styles.heading}>
-          Pantry
-        </ThemedText>
+    <AppBackground>
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <ThemedText type="subtitle" style={styles.heading}>
+            Pantry
+          </ThemedText>
 
-        {isPending ? (
-          <ThemedView style={styles.centered}>
-            <ActivityIndicator />
-          </ThemedView>
-        ) : (
-          <FlatList
-            data={items}
-            keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={styles.list}
-            ListEmptyComponent={<EmptyState />}
-            renderItem={({ item }) => <PantryRow item={item} />}
-          />
-        )}
-      </SafeAreaView>
-    </ThemedView>
+          {isPending ? (
+            <ThemedView style={styles.centered}>
+              <ActivityIndicator />
+            </ThemedView>
+          ) : (
+            <FlatList
+              data={items}
+              keyExtractor={(item) => String(item.id)}
+              contentContainerStyle={styles.list}
+              ListEmptyComponent={<EmptyState />}
+              renderItem={({ item }) => <PantryRow item={item} />}
+            />
+          )}
+        </SafeAreaView>
+      </ThemedView>
+    </AppBackground>
   );
 }
 
 function EmptyState() {
   return (
-    <ThemedView style={styles.centered}>
+    <ThemedView style={styles.emptyBackground}>
       <ThemedText themeColor="textSecondary" style={styles.centeredText}>
         Nothing here yet. Scan a barcode to add your first item.
       </ThemedText>
@@ -114,33 +118,39 @@ function PantryRow({ item }: { item: PantryItem }) {
             </ThemedText>
           )}
 
-          {/* Tapping the expiry is how you correct it — the date is the thing
-              the user is looking at when they notice it's wrong. */}
+          <ThemedText
+            type="small"
+            themeColor={expiry.urgent ? "text" : "textSecondary"}
+          >
+            {expiry.text}
+          </ThemedText>
+        </ThemedView>
+
+        {/* Edit sits directly above Remove so the row's two actions read as a
+            pair rather than being split across the tile. */}
+        <ThemedView style={styles.rowActions}>
           <Pressable
             onPress={() => setIsEditing((editing) => !editing)}
             disabled={isPendingRow}
             accessibilityLabel={`Change expiry date for ${item.name}`}
             style={({ pressed }) => pressed && styles.pressed}
           >
-            <ThemedText
-              type="small"
-              themeColor={expiry.urgent ? "text" : "textSecondary"}
-            >
-              {expiry.text} · Edit
+            <ThemedText type="small" themeColor="textSecondary">
+              {isEditing ? "Done" : "Edit"}
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={() => remove(item.id)}
+            disabled={isPendingRow}
+            accessibilityLabel={`Remove ${item.name}`}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <ThemedText type="small" themeColor="textSecondary">
+              Remove
             </ThemedText>
           </Pressable>
         </ThemedView>
-
-        <Pressable
-          onPress={() => remove(item.id)}
-          disabled={isPendingRow}
-          accessibilityLabel={`Remove ${item.name}`}
-          style={({ pressed }) => pressed && styles.pressed}
-        >
-          <ThemedText type="small" themeColor="textSecondary">
-            Remove
-          </ThemedText>
-        </Pressable>
       </ThemedView>
 
       {isEditing && (
@@ -161,6 +171,8 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     justifyContent: "center",
+    // Transparent so the app-wide pantry backdrop shows through.
+    backgroundColor: "transparent",
   },
   safeArea: {
     flex: 1,
@@ -173,6 +185,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   list: {
+    flexGrow: 1,
     gap: Spacing.two,
     paddingBottom: BottomTabInset + Spacing.four,
   },
@@ -185,6 +198,17 @@ const styles = StyleSheet.create({
   },
   centeredText: {
     textAlign: "center",
+  },
+  emptyBackground: {
+    flex: 1,
+    width: "100%",
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    minHeight: 360,
+    backgroundColor: "transparent",
   },
   row: {
     gap: Spacing.three,
@@ -205,6 +229,11 @@ const styles = StyleSheet.create({
   rowBody: {
     flex: 1,
     gap: Spacing.half,
+    backgroundColor: "transparent",
+  },
+  rowActions: {
+    alignItems: "flex-end",
+    gap: Spacing.two,
     backgroundColor: "transparent",
   },
   scanButton: {

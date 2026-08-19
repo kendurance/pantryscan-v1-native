@@ -16,6 +16,7 @@ import { PermissionGate } from "@/components/permission-gate";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
+import { toast } from "@/lib/toast";
 
 const FlashModes: FlashMode[] = ["off", "on", "auto"];
 
@@ -59,6 +60,14 @@ function CaptureSurface() {
         skipProcessing: Platform.OS === "android",
       });
       setPhoto(result ?? null);
+      if (result) {
+        toast.success("Photo captured", `${result.width}x${result.height}`);
+      }
+    } catch (error) {
+      toast.error(
+        "Capture failed",
+        error instanceof Error ? error.message : undefined,
+      );
     } finally {
       setIsCapturing(false);
     }

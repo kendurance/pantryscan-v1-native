@@ -6,6 +6,7 @@ import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
 
 import { Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { fromIsoDate, startOfToday, toIsoDate } from "@/lib/iso-date";
 
 function formatForDisplay(iso: string): string {
@@ -92,6 +93,7 @@ export function ExpiryDateField({ value, onChange }: ExpiryDateFieldProps) {
  */
 function WebDateInput({ value, onChange }: ExpiryDateFieldProps) {
   const Input = "input" as unknown as React.ElementType;
+  const theme = useTheme();
 
   return (
     <Input
@@ -106,8 +108,12 @@ function WebDateInput({ value, onChange }: ExpiryDateFieldProps) {
         padding: Spacing.two,
         borderRadius: Spacing.two,
         border: "1px solid rgba(128,128,128,0.4)",
-        background: "transparent",
-        color: "inherit",
+        // Explicit colours rather than `inherit`/transparent: the browser draws
+        // the date text and calendar picker itself, and in dark mode those
+        // default to near-black, leaving black text on a black surface.
+        background: theme.backgroundElement,
+        color: theme.text,
+        colorScheme: theme.background === "#ffffff" ? "light" : "dark",
       }}
     />
   );

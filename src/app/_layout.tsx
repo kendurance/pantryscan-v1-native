@@ -2,6 +2,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useColorScheme } from "react-native";
+import Toast from "react-native-toast-message";
 
 import { AnimatedSplashOverlay } from "@/components/animated-icon";
 import { PantryDatabaseProvider } from "@/db/pantry-database-provider";
@@ -30,6 +31,8 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="labs" options={{ headerShown: false }} />
           </Stack>
+          {/* Rendered last so toasts sit above every screen in the stack. */}
+          <Toast />
         </ThemeProvider>
       </PantryDatabaseProvider>
     </PersistQueryClientProvider>

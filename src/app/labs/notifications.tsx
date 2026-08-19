@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { LabButton } from "@/components/lab-button";
 import { LabRow, LabScreen, LabSection } from "@/components/lab-screen";
 import { ThemedText } from "@/components/themed-text";
+import { toast } from "@/lib/toast";
 import {
   ensureNotificationSetup,
   loadNotifications,
@@ -22,6 +23,7 @@ export default function NotificationsLab() {
 
   const note = useCallback((message: string) => {
     setLog((entries) => [message, ...entries].slice(0, 6));
+    toast.info(message);
   }, []);
 
   useEffect(() => {

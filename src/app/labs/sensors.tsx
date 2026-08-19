@@ -11,6 +11,7 @@ import { LabButton } from "@/components/lab-button";
 import { LabRow, LabScreen, LabSection } from "@/components/lab-screen";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { toast } from "@/lib/toast";
 import { Spacing } from "@/constants/theme";
 
 const UpdateIntervalMs = 100;
@@ -108,7 +109,12 @@ export default function SensorsLab() {
           label={isSubscribed ? "Unsubscribe" : "Subscribe"}
           emphasis="strong"
           disabled={!SensorsSupported}
-          onPress={() => setIsSubscribed((current) => !current)}
+          onPress={() => {
+            // Toast outside the updater: state updaters must stay pure, and
+            // React may invoke them more than once.
+            toast.info(isSubscribed ? "Unsubscribed" : "Subscribed");
+            setIsSubscribed(!isSubscribed);
+          }}
         />
       </LabRow>
 

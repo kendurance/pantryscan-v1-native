@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import { LabButton } from "@/components/lab-button";
 import { LabRow, LabScreen, LabSection } from "@/components/lab-screen";
 import { ThemedText } from "@/components/themed-text";
+import { toast } from "@/lib/toast";
 
 const ImpactStyles = [
   { label: "Light", style: Haptics.ImpactFeedbackStyle.Light },
@@ -28,6 +29,7 @@ export default function HapticsLab() {
   const fire = (label: string, run: () => Promise<void>) => {
     void run();
     setLastFired(label);
+    toast.info(label, supported ? "Fired" : "No-op on web");
   };
 
   return (

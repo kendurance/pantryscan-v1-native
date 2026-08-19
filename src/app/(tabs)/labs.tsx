@@ -32,6 +32,11 @@ const Labs: { href: Href; title: string; description: string }[] = [
     title: "Sensors",
     description: "Device motion and orientation readings",
   },
+  {
+    href: "/labs/toasts",
+    title: "Toasts",
+    description: "Transient success, error, and info feedback",
+  },
 ];
 
 export default function LabsScreen() {

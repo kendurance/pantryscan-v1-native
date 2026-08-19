@@ -14,6 +14,7 @@ import { LabButton } from "@/components/lab-button";
 import { LabRow, LabScreen, LabSection } from "@/components/lab-screen";
 import { PermissionGate } from "@/components/permission-gate";
 import { ThemedText } from "@/components/themed-text";
+import { toast } from "@/lib/toast";
 
 /** `expo-av` is deprecated and split into expo-audio / expo-video. This is expo-audio. */
 
@@ -82,11 +83,13 @@ function RecorderSurface() {
     await recorder.prepareToRecordAsync();
     recorder.record();
     setRecordingUri(null);
+    toast.info("Recording started");
   };
 
   const stopRecording = async () => {
     await recorder.stop();
     setRecordingUri(recorder.uri ?? null);
+    toast.success("Recording saved");
     // Release the recording route so playback is not forced through the earpiece.
     await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
   };

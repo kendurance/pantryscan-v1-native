@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
 
@@ -8,40 +9,35 @@ import { ThemedView } from "./themed-view";
 import type { Product } from "@/api/open-food-facts";
 import { useAddToPantry } from "@/api/queries";
 import { Spacing } from "@/constants/theme";
+import { toast } from "@/lib/toast";
 
 export function AddToPantry({ product }: { product: Product }) {
   const [expiresOn, setExpiresOn] = useState<string | undefined>(undefined);
-  const { mutate, isPending, isSuccess, isError, error, reset } =
-    useAddToPantry();
+  const { mutate, isPending } = useAddToPantry();
 
   const handleAdd = () => {
-    mutate({
-      barcode: product.code,
-      name: product.name,
-      brand: product.brand,
-      quantity: product.quantity,
-      imageUrl: product.imageUrl,
-      expiresOn,
-    });
-  };
-
-  if (isSuccess) {
-    return (
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <ThemedText type="smallBold">Added to pantry</ThemedText>
-        <Pressable
-          onPress={() => {
-            setExpiresOn(undefined);
-            reset();
-          }}
-        >
-          <ThemedText type="link" themeColor="textSecondary">
-            Add another
-          </ThemedText>
-        </Pressable>
-      </ThemedView>
+    mutate(
+      {
+        barcode: product.code,
+        name: product.name,
+        brand: product.brand,
+        quantity: product.quantity,
+        imageUrl: product.imageUrl,
+        expiresOn,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Added to pantry", product.name);
+          // The optimistic update already shows the row, so returning to the
+          // list immediately is safe and saves a tap.
+          router.replace("/");
+        },
+        onError: (mutationError) => {
+          toast.error("Couldn't add this item", mutationError.message);
+        },
+      },
     );
-  }
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -60,12 +56,6 @@ export function AddToPantry({ product }: { product: Product }) {
           )}
         </ThemedView>
       </Pressable>
-
-      {isError && (
-        <ThemedText type="small" themeColor="textSecondary">
-          Couldn&apos;t add this item: {error.message}
-        </ThemedText>
-      )}
     </ThemedView>
   );
 }
@@ -80,12 +70,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.three,
-  },
-  card: {
-    alignItems: "center",
-    gap: Spacing.one,
-    padding: Spacing.three,
     borderRadius: Spacing.three,
   },
   pressed: {

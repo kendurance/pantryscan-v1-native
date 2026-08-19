@@ -89,8 +89,17 @@ describe("PantryScreen", () => {
     await renderScreen();
 
     await waitFor(() =>
-      expect(screen.getByText("No expiry set · Edit")).toBeTruthy(),
+      expect(screen.getByText("No expiry set")).toBeTruthy(),
     );
+  });
+
+  it("offers Edit and Remove as separate actions on a row", async () => {
+    listPantryItems.mockResolvedValue([baseItem]);
+
+    await renderScreen();
+
+    await waitFor(() => expect(screen.getByText("Edit")).toBeTruthy());
+    expect(screen.getByText("Remove")).toBeTruthy();
   });
 
   it("counts down the days until expiry", async () => {
@@ -101,7 +110,7 @@ describe("PantryScreen", () => {
     await renderScreen();
 
     await waitFor(() =>
-      expect(screen.getByText("Expires in 5 days · Edit")).toBeTruthy(),
+      expect(screen.getByText("Expires in 5 days")).toBeTruthy(),
     );
   });
 
@@ -112,6 +121,6 @@ describe("PantryScreen", () => {
 
     await renderScreen();
 
-    await waitFor(() => expect(screen.getByText("Expired · Edit")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Expired")).toBeTruthy());
   });
 });

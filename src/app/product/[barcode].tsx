@@ -109,7 +109,7 @@ function ProductDetail({ product }: { product: Product }) {
             onLoadEnd={() => setImageLoading(false)}
           />
           {imageLoading && (
-            <ThemedView style={styles.imageOverlay} pointerEvents="none">
+            <ThemedView style={styles.imageOverlay}>
               <ActivityIndicator />
             </ThemedView>
           )}
@@ -195,6 +195,7 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     position: "absolute",
+    pointerEvents: "none",
     top: 0,
     left: 0,
     right: 0,
