@@ -4,7 +4,16 @@ Scan a grocery barcode, get the product, track what's about to expire.
 
 Built with Expo SDK 57 · React Native 0.86 · React 19.2 · TanStack Query v5 · TypeScript · expo-router.
 
-> _[ screenshot / GIF: scan → product → added to pantry ]_
+| Launch | Empty pantry |
+| :---: | :---: |
+| <img src="assets/images/screenshots/v1/app_loading_screen.png" alt="Splash screen: the PantryScan cart logo centred on a pantry-brown background" width="300"> | <img src="assets/images/screenshots/v1/no_contents_in_pantry.png" alt="Empty pantry with the tiled jar-and-wheat backdrop and a Scan a barcode call to action" width="300"> |
+
+| Light | Dark |
+| :---: | :---: |
+| <img src="assets/images/screenshots/v1/full_pantry_light_mode.png" alt="Pantry list in light mode showing scanned products with expiry countdowns" width="300"> | <img src="assets/images/screenshots/v1/full_pantry_dark_mode.png" alt="The same pantry list in dark mode" width="300"> |
+
+Real scans, not fixtures — expired items sort to the top, and the rest count
+down to their reminder date.
 
 ## Why I built it
 
