@@ -14,7 +14,7 @@ const Fields = [
  * Open Food Facts asks apps to identify themselves so it can contact the
  * maintainer about misbehaving clients.
  */
-const UserAgent = "PantryScan/1.0 (github.com/kips01057/pantryscan)";
+const UserAgent = "PantryScan/1.0 (github.com/kendurance/pantryscan-v1-native)";
 
 /** Thrown when the barcode is not in the database, as opposed to a transport failure. */
 export class ProductNotFoundError extends Error {
