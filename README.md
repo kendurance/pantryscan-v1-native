@@ -130,6 +130,20 @@ is testable without rendering; and migrations are versioned with
 `PRAGMA user_version`, with a test that upgrades a v1 database to prove
 existing rows survive.
 
+## Design
+
+Icons, splash art, and the background pattern come from a single asset sheet,
+which also documents the palette used throughout the app.
+
+<img src="assets/images/pantryscan-asset-sheet.jpeg" alt="Asset sheet: app icon, splash logo, Android adaptive foreground, favicon, background pattern, and the four brand colours" width="700">
+
+| | |
+| --- | --- |
+| `#8B5E34` | Pantry brown — splash and adaptive icon background |
+| `#1f6f4a` | Accent green — also the notification channel colour |
+| `#F5E6D3` | Warm beige — light-theme surfaces |
+| `#4A4A4A` | Charcoal — body text on light surfaces |
+
 ## What comes next
 
 An offline mutation queue so scans made without connectivity are replayed on
