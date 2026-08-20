@@ -51,18 +51,59 @@ function toPantryItem(row: PantryItemRow): PantryItem {
   };
 }
 
+/** Fields the pantry list can be ordered by. */
+export type PantrySortField = "expiry" | "name" | "brand" | "added";
+
+export type PantrySortDirection = "asc" | "desc";
+
+export type PantrySort = {
+  field: PantrySortField;
+  direction: PantrySortDirection;
+};
+
+export const DefaultPantrySort: PantrySort = {
+  field: "expiry",
+  direction: "asc",
+};
+
 /**
- * Lists pantry items, soonest expiry first. `expires_on IS NULL` sorts last so
- * items without a date don't crowd out the ones actually going bad.
+ * Maps a sort field to its ORDER BY clause, with `$dir` standing in for the
+ * direction. Written as a lookup rather than string-built from user input, so
+ * no caller can inject SQL through the sort controls.
+ *
+ * Rows missing the sorted value always sort last, in both directions: an item
+ * with no expiry date is unknown rather than infinitely far away, so it should
+ * not lead the list when sorting descending.
+ */
+const OrderByClause: Record<PantrySortField, string> = {
+  expiry: "expires_on IS NULL, expires_on $dir, added_at DESC, id DESC",
+  // NOCASE so "apple" and "Apple" sort together rather than in ASCII order.
+  name: "name COLLATE NOCASE $dir, id DESC",
+  brand:
+    "brand IS NULL, brand COLLATE NOCASE $dir, name COLLATE NOCASE ASC, id DESC",
+  // `added_at` has second precision, so items scanned in the same second tie.
+  // The row id is monotonic, which keeps rapid scans in a stable order.
+  added: "added_at $dir, id $dir",
+};
+
+function buildOrderBy(sort: PantrySort): string {
+  const direction = sort.direction === "desc" ? "DESC" : "ASC";
+  return OrderByClause[sort.field].replaceAll("$dir", direction);
+}
+
+/**
+ * Lists pantry items in the requested order. Sorting happens in SQLite rather
+ * than in JavaScript so collation and NULL placement stay consistent.
  */
 export async function listPantryItems(
   db: SQLiteDatabase,
+  sort: PantrySort = DefaultPantrySort,
 ): Promise<PantryItem[]> {
   const rows = await db.getAllAsync<PantryItemRow>(
     `SELECT id, barcode, name, brand, quantity, image_url, expires_on, added_at,
             notification_id
        FROM pantry_items
-      ORDER BY expires_on IS NULL, expires_on ASC, added_at DESC`,
+      ORDER BY ${buildOrderBy(sort)}`,
   );
   return rows.map(toPantryItem);
 }

@@ -22,6 +22,7 @@ jest.mock("@/lib/notifications", () => ({
 }));
 
 jest.mock("@/db/pantry", () => ({
+  ...jest.requireActual("@/db/pantry"),
   insertPantryItem: jest.fn(),
   deletePantryItem: jest.fn(),
   getPantryItem: jest.fn(),
@@ -45,7 +46,7 @@ const existingItem: PantryItem = {
 
 function setup() {
   const queryClient = createTestQueryClient();
-  queryClient.setQueryData<PantryItem[]>(pantryKeys.list, [existingItem]);
+  queryClient.setQueryData<PantryItem[]>(pantryKeys.list(), [existingItem]);
   return { queryClient, wrapper: createQueryWrapper(queryClient) };
 }
 
@@ -70,12 +71,12 @@ describe("useAddToPantry", () => {
     });
 
     await waitFor(() => {
-      const list = queryClient.getQueryData<PantryItem[]>(pantryKeys.list);
+      const list = queryClient.getQueryData<PantryItem[]>(pantryKeys.list());
       expect(list?.map((item) => item.name)).toEqual(["Milk", "Coca Cola"]);
     });
 
     // The optimistic row carries a negative sentinel id until the insert lands.
-    const optimistic = queryClient.getQueryData<PantryItem[]>(pantryKeys.list);
+    const optimistic = queryClient.getQueryData<PantryItem[]>(pantryKeys.list());
     expect(optimistic?.[0].id).toBeLessThan(0);
 
     await act(async () => {
@@ -95,7 +96,7 @@ describe("useAddToPantry", () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(queryClient.getQueryData<PantryItem[]>(pantryKeys.list)).toEqual([
+    expect(queryClient.getQueryData<PantryItem[]>(pantryKeys.list())).toEqual([
       existingItem,
     ]);
   });
@@ -114,7 +115,7 @@ describe("useRemoveFromPantry", () => {
     });
 
     await waitFor(() =>
-      expect(queryClient.getQueryData<PantryItem[]>(pantryKeys.list)).toEqual(
+      expect(queryClient.getQueryData<PantryItem[]>(pantryKeys.list())).toEqual(
         [],
       ),
     );
@@ -133,7 +134,7 @@ describe("useRemoveFromPantry", () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(queryClient.getQueryData<PantryItem[]>(pantryKeys.list)).toEqual([
+    expect(queryClient.getQueryData<PantryItem[]>(pantryKeys.list())).toEqual([
       existingItem,
     ]);
   });

@@ -16,7 +16,8 @@ import {
 } from "@/api/queries";
 import { AppBackground } from "@/components/app-background";
 import { ExpiryDateField } from "@/components/expiry-date-field";
-import type { PantryItem } from "@/db/pantry";
+import { PantrySortControl } from "@/components/pantry-sort-control";
+import { DefaultPantrySort, type PantryItem, type PantrySort } from "@/db/pantry";
 import { daysUntil } from "@/lib/iso-date";
 
 import { ThemedText } from "@/components/themed-text";
@@ -24,7 +25,9 @@ import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 
 export default function PantryScreen() {
-  const { data: items, isPending } = usePantryItems();
+  const [sort, setSort] = useState<PantrySort>(DefaultPantrySort);
+  const { data: items, isPending } = usePantryItems(sort);
+  const hasItems = (items?.length ?? 0) > 0;
 
   return (
     <AppBackground>
@@ -34,6 +37,10 @@ export default function PantryScreen() {
             Pantry
           </ThemedText>
 
+          {/* Hidden until there is something to sort — the control would just
+              be noise above an empty state. */}
+          {hasItems && <PantrySortControl sort={sort} onChange={setSort} />}
+
           {isPending ? (
             <ThemedView style={styles.centered}>
               <ActivityIndicator />
@@ -42,7 +49,12 @@ export default function PantryScreen() {
             <FlatList
               data={items}
               keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={styles.list}
+              // `flexGrow` only when empty: it lets the empty state fill the
+              // screen, but would otherwise stretch a short list's spacing.
+              contentContainerStyle={[
+                styles.list,
+                !hasItems && styles.listEmpty,
+              ]}
               ListEmptyComponent={<EmptyState />}
               renderItem={({ item }) => <PantryRow item={item} />}
             />
@@ -185,9 +197,11 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   list: {
-    flexGrow: 1,
     gap: Spacing.two,
     paddingBottom: BottomTabInset + Spacing.four,
+  },
+  listEmpty: {
+    flexGrow: 1,
   },
   centered: {
     flex: 1,

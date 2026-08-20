@@ -252,3 +252,96 @@ describe("editing the expiry date", () => {
     expect(items.map((i) => i.name)).toEqual(["Second", "First"]);
   });
 });
+
+describe("sorting", () => {
+  /** Seeds a spread of names, brands, and expiry dates (some absent). */
+  async function seed(db: Awaited<ReturnType<typeof createTestDb>>) {
+    await insertPantryItem(db, {
+      barcode: "1",
+      name: "banana",
+      brand: "Chiquita",
+      expiresOn: "2026-12-01",
+    });
+    await insertPantryItem(db, {
+      barcode: "2",
+      name: "Apple",
+      brand: "acme",
+      expiresOn: "2026-01-01",
+    });
+    await insertPantryItem(db, { barcode: "3", name: "Cherry" });
+  }
+
+  it("orders by soonest expiry, with undated items last", async () => {
+    const db = await createTestDb();
+    await seed(db);
+
+    const items = await listPantryItems(db, {
+      field: "expiry",
+      direction: "asc",
+    });
+    expect(items.map((i) => i.name)).toEqual(["Apple", "banana", "Cherry"]);
+  });
+
+  it("keeps undated items last when expiry is reversed", async () => {
+    const db = await createTestDb();
+    await seed(db);
+
+    const items = await listPantryItems(db, {
+      field: "expiry",
+      direction: "desc",
+    });
+    // "Cherry" has no date, so it stays last rather than leading the list.
+    expect(items.map((i) => i.name)).toEqual(["banana", "Apple", "Cherry"]);
+  });
+
+  it("sorts names case-insensitively", async () => {
+    const db = await createTestDb();
+    await seed(db);
+
+    const items = await listPantryItems(db, { field: "name", direction: "asc" });
+    // Without COLLATE NOCASE, "Apple" and "Cherry" would both precede "banana".
+    expect(items.map((i) => i.name)).toEqual(["Apple", "banana", "Cherry"]);
+  });
+
+  it("reverses the name order", async () => {
+    const db = await createTestDb();
+    await seed(db);
+
+    const items = await listPantryItems(db, {
+      field: "name",
+      direction: "desc",
+    });
+    expect(items.map((i) => i.name)).toEqual(["Cherry", "banana", "Apple"]);
+  });
+
+  it("sorts by brand, with brandless items last", async () => {
+    const db = await createTestDb();
+    await seed(db);
+
+    const items = await listPantryItems(db, {
+      field: "brand",
+      direction: "asc",
+    });
+    expect(items.map((i) => i.brand)).toEqual(["acme", "Chiquita", undefined]);
+  });
+
+  it("orders by when items were added", async () => {
+    const db = await createTestDb();
+    await seed(db);
+
+    const newest = await listPantryItems(db, {
+      field: "added",
+      direction: "desc",
+    });
+    expect(newest[0].name).toBe("Cherry");
+  });
+
+  it("defaults to soonest expiry first", async () => {
+    const db = await createTestDb();
+    await seed(db);
+
+    expect(await listPantryItems(db)).toEqual(
+      await listPantryItems(db, { field: "expiry", direction: "asc" }),
+    );
+  });
+});

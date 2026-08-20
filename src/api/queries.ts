@@ -8,6 +8,7 @@ import { useSQLiteContext } from "expo-sqlite";
 
 import { fetchProduct, ProductNotFoundError } from "@/api/open-food-facts";
 import {
+  DefaultPantrySort,
   deletePantryItem,
   getPantryItem,
   insertPantryItem,
@@ -15,6 +16,7 @@ import {
   updatePantryItemExpiry,
   type NewPantryItem,
   type PantryItem,
+  type PantrySort,
 } from "@/db/pantry";
 import {
   cancelExpiryReminder,
@@ -27,7 +29,13 @@ export const productKeys = {
 };
 
 export const pantryKeys = {
-  list: ["pantry"] as const,
+  all: ["pantry"] as const,
+  /**
+   * The sort is part of the key so each ordering caches separately; reusing one
+   * key would serve the previous ordering until a refetch landed.
+   */
+  list: (sort: PantrySort = DefaultPantrySort) =>
+    ["pantry", sort.field, sort.direction] as const,
 };
 
 export function useProduct(barcode: string | undefined) {
@@ -42,28 +50,61 @@ export function useProduct(barcode: string | undefined) {
   });
 }
 
-export function usePantryItems() {
+export function usePantryItems(sort: PantrySort = DefaultPantrySort) {
   const db = useSQLiteContext();
 
   return useQuery({
-    queryKey: pantryKeys.list,
-    queryFn: () => listPantryItems(db),
+    queryKey: pantryKeys.list(sort),
+    queryFn: () => listPantryItems(db, sort),
     // The local database is the source of truth, so a cached copy is never
     // "stale" in the way a remote fetch is — only a mutation invalidates it.
     staleTime: Infinity,
+    // Keeps the previous ordering on screen while the new one loads, instead of
+    // flashing an empty list on every sort change.
+    placeholderData: (previous) => previous,
   });
 }
 
+/** Every cached pantry list, one per sort option. */
+type PantrySnapshot = [readonly unknown[], PantryItem[] | undefined][];
+
 /**
- * Cancels in-flight pantry reads and snapshots the list so an optimistic write
- * can be rolled back. Cancelling first matters: a refetch that lands after the
- * optimistic update would otherwise clobber it.
+ * Cancels in-flight pantry reads and snapshots every cached ordering so an
+ * optimistic write can be rolled back. Cancelling first matters: a refetch that
+ * lands after the optimistic update would otherwise clobber it.
  */
-async function beginOptimisticPantryUpdate(queryClient: QueryClient) {
-  await queryClient.cancelQueries({ queryKey: pantryKeys.list });
+async function beginOptimisticPantryUpdate(
+  queryClient: QueryClient,
+): Promise<{ previous: PantrySnapshot }> {
+  await queryClient.cancelQueries({ queryKey: pantryKeys.all });
   return {
-    previous: queryClient.getQueryData<PantryItem[]>(pantryKeys.list),
+    previous: queryClient.getQueriesData<PantryItem[]>({
+      queryKey: pantryKeys.all,
+    }),
   };
+}
+
+/**
+ * Applies an optimistic change to every cached ordering. Each sort is a
+ * separate cache entry, so updating only the active one would leave the others
+ * stale the moment the user switched sort.
+ */
+function updateEveryPantryList(
+  queryClient: QueryClient,
+  update: (items: PantryItem[]) => PantryItem[],
+) {
+  queryClient.setQueriesData<PantryItem[]>(
+    { queryKey: pantryKeys.all },
+    (old) => update(old ?? []),
+  );
+}
+
+/** Restores every ordering captured by `beginOptimisticPantryUpdate`. */
+function restorePantryLists(
+  queryClient: QueryClient,
+  snapshot: PantrySnapshot | undefined,
+) {
+  snapshot?.forEach(([key, items]) => queryClient.setQueryData(key, items));
 }
 
 export function useAddToPantry() {
@@ -87,7 +128,7 @@ export function useAddToPantry() {
     onMutate: async (item) => {
       const context = await beginOptimisticPantryUpdate(queryClient);
 
-      queryClient.setQueryData<PantryItem[]>(pantryKeys.list, (old = []) => [
+      updateEveryPantryList(queryClient, (items) => [
         {
           ...item,
           // Negative sentinel id: replaced by the real row id once the insert
@@ -95,18 +136,18 @@ export function useAddToPantry() {
           id: -Date.now(),
           addedAt: new Date().toISOString(),
         },
-        ...old,
+        ...items,
       ]);
 
       return context;
     },
 
     onError: (_error, _item, context) => {
-      queryClient.setQueryData(pantryKeys.list, context?.previous);
+      restorePantryLists(queryClient, context?.previous);
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: pantryKeys.list });
+      queryClient.invalidateQueries({ queryKey: pantryKeys.all });
     },
   });
 }
@@ -152,19 +193,19 @@ export function useUpdatePantryExpiry() {
     onMutate: async ({ id, expiresOn }) => {
       const context = await beginOptimisticPantryUpdate(queryClient);
 
-      queryClient.setQueryData<PantryItem[]>(pantryKeys.list, (old = []) =>
-        old.map((item) => (item.id === id ? { ...item, expiresOn } : item)),
+      updateEveryPantryList(queryClient, (items) =>
+        items.map((item) => (item.id === id ? { ...item, expiresOn } : item)),
       );
 
       return context;
     },
 
     onError: (_error, _variables, context) => {
-      queryClient.setQueryData(pantryKeys.list, context?.previous);
+      restorePantryLists(queryClient, context?.previous);
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: pantryKeys.list });
+      queryClient.invalidateQueries({ queryKey: pantryKeys.all });
     },
   });
 }
@@ -185,19 +226,19 @@ export function useRemoveFromPantry() {
     onMutate: async (id) => {
       const context = await beginOptimisticPantryUpdate(queryClient);
 
-      queryClient.setQueryData<PantryItem[]>(pantryKeys.list, (old = []) =>
-        old.filter((item) => item.id !== id),
+      updateEveryPantryList(queryClient, (items) =>
+        items.filter((item) => item.id !== id),
       );
 
       return context;
     },
 
     onError: (_error, _id, context) => {
-      queryClient.setQueryData(pantryKeys.list, context?.previous);
+      restorePantryLists(queryClient, context?.previous);
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: pantryKeys.list });
+      queryClient.invalidateQueries({ queryKey: pantryKeys.all });
     },
   });
 }

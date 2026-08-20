@@ -792,3 +792,4 @@ Small honest commits with real messages are themselves part of the portfolio. A 
 - **Scan Beep** - We will add a scan/beep sound when a barcode has been recognized while in Scan/camera view.
 - **Logo/Background** - We will add a new logo with a pantry background (both for when the app is loading up). The Pantry page itself may also have a background.
 - **Toast Confirmations** - When an item has been added to the pantry from the Scan, there will be a "toast" that pops up while the user gets navigated right back to the pantry page.
+- **Sort/Filter** - We need a way to sort the pantry based on expiry date, name, brand; ascending and descending

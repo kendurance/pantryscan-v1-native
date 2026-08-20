@@ -17,6 +17,7 @@ jest.mock("@/lib/notifications", () => ({
 }));
 
 jest.mock("@/db/pantry", () => ({
+  ...jest.requireActual("@/db/pantry"),
   listPantryItems: jest.fn(),
   insertPantryItem: jest.fn(),
   deletePantryItem: jest.fn(),
