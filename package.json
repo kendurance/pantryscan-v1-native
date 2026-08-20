@@ -21,6 +21,7 @@
     "expo-linking": "~57.0.5",
     "expo-notifications": "~57.0.11",
     "expo-router": "~57.0.12",
+    "expo-sensors": "~57.0.2",
     "expo-splash-screen": "~57.0.6",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
@@ -34,6 +35,7 @@
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
+    "react-native-toast-message": "^2.4.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.10.1"
   },
@@ -41,16 +43,29 @@
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~57.0.1",
     "jest-expo": "^57.0.4",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "./scripts/with-jdk17.sh expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "jest",
+    "zombie-check": "lsof -nP -iTCP:8081 -sTCP:LISTEN",
+    "memory-leak-check": "ps aux | grep -i headless | grep -v grep",
+    "android:go": "expo start --android"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^@/assets/(.*)$": "<rootDir>/assets/$1",
+      "\\.(css)$": "<rootDir>/src/test/style-mock.js"
+    },
+    "forceExit": true
   },
   "private": true
 }

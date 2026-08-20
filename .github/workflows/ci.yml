@@ -1,0 +1,20 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # expo-env.d.ts and .expo/types are generated and gitignored, so a fresh
+      # checkout has neither and TypeScript cannot resolve CSS or route types.
+      - run: npx expo customize tsconfig.json
+      - run: npx tsc --noEmit
+      - run: npx eslint .
+      - run: npm test -- --ci

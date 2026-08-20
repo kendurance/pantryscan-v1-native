@@ -1,56 +1,159 @@
-# Welcome to your Expo app 👋
+# PantryScan
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Scan a grocery barcode, get the product, track what's about to expire.
 
-## Get started
+Built with Expo SDK 57 · React Native 0.86 · React 19.2 · TanStack Query v5 · TypeScript · expo-router.
 
-1. Install dependencies
+| Launch | Empty pantry |
+| :---: | :---: |
+| <img src="assets/images/screenshots/v1/app_loading_screen.png" alt="Splash screen: the PantryScan cart logo centred on a pantry-brown background" width="300"> | <img src="assets/images/screenshots/v1/no_contents_in_pantry.png" alt="Empty pantry with the tiled jar-and-wheat backdrop and a Scan a barcode call to action" width="300"> |
 
-   ```bash
-   npm install
-   ```
+| Light | Dark |
+| :---: | :---: |
+| <img src="assets/images/screenshots/v1/full_pantry_light_mode.png" alt="Pantry list in light mode showing scanned products with expiry countdowns" width="300"> | <img src="assets/images/screenshots/v1/full_pantry_dark_mode.png" alt="The same pantry list in dark mode" width="300"> |
 
-2. Start the app
+Real scans, not fixtures — expired items sort to the top, and the rest count
+down to their reminder date.
 
-   ```bash
-   npx expo start
-   ```
+## Why this was built
 
-In the output, you'll find options to open the app in a
+The purpose is to be a real reference implementation of the mobile-specific
+problems — permissions, offline state, native capture, scheduled notifications
+— rather than a tutorial clone. Each of those has a wrong-but-plausible
+solution that only fails on a device, which is the interesting part.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## What it demonstrates
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- **Offline-first data** — the TanStack Query cache is persisted (SQLite on
+  native, `localStorage` on web) and `onlineManager` / `focusManager` are
+  adapted to React Native, where neither `window.focus` nor `navigator.onLine`
+  exists.
+- **Camera in scan mode** — continuous barcode detection guarded against
+  firing many times per second, with the iOS UPC-A/EAN-13 quirk handled.
+- **Optimistic mutations** — `onMutate` → `onError` rollback → `onSettled`,
+  covered by tests that assert the list returns to its previous state.
+- **The full permission lifecycle** — undetermined, granted, deniable, and
+  denied-permanently, all four handled rather than the usual two.
+- **Scheduled local notifications** — Android channels, with the notification
+  id stored on the row so deleting an item cancels its reminder instead of
+  leaving an orphaned alert.
+- **A real API client** — Open Food Facts answers `200` with `status: 0` for an
+  unknown barcode, so transport success is translated into a domain error.
 
-## Get a fresh project
+## Labs
 
-When you're ready, run:
+A reference gallery of native capabilities, kept separate from the product so
+neither one distorts the other. Each screen is self-contained:
+
+camera capture · audio recording · notifications · haptics · sensors · toasts
+
+## Running it
+
+### Prerequisites
+
+| Requirement | Notes |
+| --- | --- |
+| **Node 22+** | The database tests use `node:sqlite`, which is not in Node 20. |
+| **Android Studio** | For the SDK and an emulator. |
+| **JDK 17** | Android Studio bundles JDK 25, which React Native's NDK build rejects. `npm run android` finds a 17 automatically, or installs via `mise install java@temurin-17`. |
+| **Xcode** | iOS only. |
+
+Add to your shell profile (`~/.zshrc`):
 
 ```bash
-npm run reset-project
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Install and run
 
-### Other setup steps
+```bash
+npm install
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+npm run android     # build and install a development build (first run ~10 min)
+npm run ios
+npm run web
+```
 
-## Learn more
+`npm run android` builds a standalone app. That is required for notifications,
+which Expo Go dropped on Android in SDK 53, and it is the only way to see the
+real app icon and splash screen.
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm run android:go  # Expo Go instead — faster to start, no notifications
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Test and check
 
-## Join the community
+```bash
+npm test            # 44 tests: API parsing, SQL, migrations, mutations, screens
+npm run lint
+npx tsc --noEmit
+```
 
-Join our community of developers creating universal apps.
+CI runs all three on every push.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Try it without a barcode
+
+An emulator camera cannot scan, so the product route can be opened directly to
+exercise the whole path — `/product/<barcode>` on web, or a deep link on a
+device:
+
+| Barcode | Case |
+| --- | --- |
+| `5000112637922` | Coca-Cola — full data |
+| `3017620422003` | Nutella — missing quantity |
+| `0000000000000` | Not found (a `200` carrying `status: 0`) |
+
+```bash
+# web
+open http://localhost:8081/product/5000112637922
+
+# android
+adb shell am start -a android.intent.action.VIEW \
+  -d "pantryscanv1native://product/5000112637922"
+```
+
+## Project layout
+
+```
+src/
+  app/          # expo-router routes: (tabs), labs/, product/[barcode]
+  api/          # Open Food Facts client (no React) + query hooks
+  db/           # SQLite schema, migrations, pantry queries
+  components/   # shared UI, including the four-state PermissionGate
+  lib/          # query client, notifications, dates, toasts
+```
+
+Two conventions worth naming: `src/api/` contains no React, so the fetch layer
+is testable without rendering; and migrations are versioned with
+`PRAGMA user_version`, with a test that upgrades a v1 database to prove
+existing rows survive.
+
+## Design
+
+Icons, splash art, and the background pattern come from a single asset sheet,
+which also documents the palette used throughout the app.
+
+<img src="assets/images/pantryscan-asset-sheet.jpeg" alt="Asset sheet: app icon, splash logo, Android adaptive foreground, favicon, background pattern, and the four brand colours" width="700">
+
+| | |
+| --- | --- |
+| `#8B5E34` | Pantry brown — splash and adaptive icon background |
+| `#1f6f4a` | Accent green — also the notification channel colour |
+| `#F5E6D3` | Warm beige — light-theme surfaces |
+| `#4A4A4A` | Charcoal — body text on light surfaces |
+
+## What comes next
+
+An offline mutation queue so scans made without connectivity are replayed on
+reconnect; E2E coverage with Maestro; and a seamless tiling asset for the
+background, which currently cover-fits rather than repeats.
+
+## Known limitations
+
+- **Notifications need a development build on Android.** `expo-notifications`
+  throws at import in Expo Go since SDK 53, so the module is loaded lazily
+  behind a guard and reminders are skipped there.
+- **Sensors and haptics are no-ops on web**, and `expo-sensors` has no listener
+  support in a browser at all. The labs say so rather than appearing broken.
